@@ -621,6 +621,13 @@ class TextRecognizer(object):
                 rec_res[indices[beg_img_no + rno]] = rec_result[rno]
             if self.benchmark:
                 self.autolog.times.end(stamp=True)
+        
+        # 释放中间 Tensor
+        self.predictor.clear_intermediate_tensor()
+
+        # 释放内存池中的所有临时 Tensor
+        self.predictor.try_shrink_memory()
+        
         return rec_res, time.time() - st
 
 

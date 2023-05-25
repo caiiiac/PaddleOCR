@@ -279,6 +279,13 @@ class TextDetector(object):
         if self.args.benchmark:
             self.autolog.times.end(stamp=True)
         et = time.time()
+
+        # 释放中间 Tensor
+        self.predictor.clear_intermediate_tensor()
+
+        # 释放内存池中的所有临时 Tensor
+        self.predictor.try_shrink_memory()
+        
         return dt_boxes, et - st
 
 
