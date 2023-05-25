@@ -54,7 +54,7 @@ def read_params():
     cfg.use_space_char = True
 
     #params for text classifier
-    cfg.use_angle_cls = True
+    cfg.use_angle_cls = False
     cfg.cls_model_dir = "./inference/ch_ppocr_mobile_v2.0_cls_infer/"
     cfg.cls_image_shape = "3, 48, 192"
     cfg.label_list = ['0', '180']
