@@ -39,6 +39,7 @@ def cv2_to_base64(image):
 
 
 def draw_server_result(image_file, res):
+    res=res['results'][0]
     img = cv2.imread(image_file)
     image = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     if len(res) == 0:
@@ -66,8 +67,7 @@ def draw_server_result(image_file, res):
             scores.append(res[dno]['confidence'])
         boxes = np.array(boxes)
         scores = np.array(scores)
-        draw_img = draw_ocr(
-            image, boxes, texts, scores, draw_txt=True, drop_score=0.5)
+        draw_img = draw_ocr(image, boxes, texts, scores)
         return draw_img
 
 
@@ -96,7 +96,7 @@ def save_structure_res(res, save_folder, image_file):
                     f.write('{}\n'.format(json.dumps(text_result)))
 
 
-def main(args):
+def main_one(args):
     image_file_list = get_image_file_list(args.image_dir)
     is_visualize = False
     headers = {"Content-type": "application/json"}
@@ -116,7 +116,7 @@ def main(args):
         elapse = time.time() - starttime
         total_time += elapse
         logger.info("Predict time of %s: %.3fs" % (image_file, elapse))
-        res = r.json()["results"][0]
+        res = r.json()
         logger.info(res)
 
         if args.visualize:
@@ -139,6 +139,30 @@ def main(args):
         if cnt % 100 == 0:
             logger.info("{} processed".format(cnt))
     logger.info("avg time cost: {}".format(float(total_time) / cnt))
+
+def main(args):
+    image_file_list = get_image_file_list(args.image_dir)
+    headers = {"Content-type": "application/json"}
+
+    imgs = []
+    starttime = time.time()
+    for image_file in image_file_list:
+        img = open(image_file, 'rb').read()
+        if img is None:
+            logger.info("error in loading image:{}".format(image_file))
+            continue
+        # seed http request
+        imgs.append(cv2_to_base64(img))
+
+    data = {'images': imgs, 'type': 'image'}
+    r = requests.post(
+        url=args.server_url, headers=headers, data=json.dumps(data))
+    elapse = time.time() - starttime
+
+    res = r.json()
+    logger.info(res)
+
+    logger.info("avg time cost: {}".format(float(elapse)))
 
 
 def parse_args():
