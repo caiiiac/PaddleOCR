@@ -1,4 +1,4 @@
-# Version: 2.0.0
+# Version: 2.4.2
 FROM registry.baidubce.com/paddlepaddle/paddle:2.4.2
 
 # PaddleOCR base on Python3.7
@@ -6,7 +6,7 @@ RUN pip3.7 install --upgrade pip -i https://mirror.baidu.com/pypi/simple
 
 RUN pip3.7 install paddlehub==2.3.1 --upgrade -i https://mirror.baidu.com/pypi/simple
 
-RUN git clone https://github.com/caiiiac/PaddleOCR.git /PaddleOCR
+RUN git clone https://gitee.com/caiiiac/PaddleOCR.git /PaddleOCR
 
 WORKDIR /PaddleOCR
 
@@ -27,4 +27,4 @@ RUN tar xf /PaddleOCR/inference/ch_PP-OCRv3_rec_infer.tar -C /PaddleOCR/inferenc
 
 EXPOSE 8866
 
-CMD ["/bin/bash","-c","hub install deploy/hubserving/ocr_system/ && hub serving start -m ocr_system"]
+CMD ["/bin/bash","-c","hub install deploy/hubserving/ocr_system/ && hub install deploy/hubserving/ocr_rec/ && hub serving start -c deploy/hubserving/ocr_system/config.json"]
