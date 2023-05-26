@@ -3,13 +3,21 @@
         "ocr_system": {
             "init_args": {
                 "version": "1.0.0",
-                "use_gpu": true
+                "use_gpu": false
+            },
+            "predict_args": {
+            }
+        },
+        "ocr_rec": {
+            "init_args": {
+                "version": "1.0.0",
+                "use_gpu": false
             },
             "predict_args": {
             }
         }
     },
-    "port": 8868,
+    "port": 8866,
     "use_multiprocess": false,
     "workers": 2
 }
