@@ -36,7 +36,7 @@ from tools.infer.utility import parse_args
 from deploy.hubserving.ocr_system.params import read_params
 logger = get_logger()
 
-import objgraph
+# import objgraph
 
 @moduleinfo(
     name="ocr_rec",
