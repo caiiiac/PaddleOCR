@@ -20,6 +20,7 @@ import os
 import sys
 sys.path.insert(0, ".")
 import copy
+import psutil
 import gc
 
 import time
@@ -27,7 +28,6 @@ import logging
 from ppocr.utils.logging import get_logger
 from paddlehub.module.module import moduleinfo, runnable, serving
 import cv2
-import numpy as np
 import paddlehub as hub
 
 from tools.infer.utility import base64_to_cv2
@@ -36,15 +36,17 @@ from tools.infer.utility import parse_args
 from deploy.hubserving.ocr_system.params import read_params
 logger = get_logger()
 
+import objgraph
+
 @moduleinfo(
     name="ocr_rec",
     version="1.0.0",
-    summary="ocr rec service",
+    summary="ocr recognition service",
     author="paddle-dev",
     author_email="paddle-dev@baidu.com",
-    type="cv/PP-OCR_system")
+    type="cv/text_recognition")
 class OCRRec(hub.Module):
-    def _initialize(self, use_gpu=False, enable_mkldnn=False):
+    def _initialize(self, use_gpu=False, enable_mkldnn=True):
         """
         initialize with the necessary elements
         """
@@ -94,8 +96,8 @@ class OCRRec(hub.Module):
                 continue
             images.append(img)
         return images
-
-    def predict(self, images=[], paths=[], ids=[], locate=[]):
+    
+    def predict(self, images=[], paths=[], ids=[], locates=[]):
         """
         Get the chinese texts in the predicted images.
         Args:
@@ -114,66 +116,89 @@ class OCRRec(hub.Module):
 
         assert predicted_data != [], "There is not any image to be predicted. Please check the input data."
 
+        
+        # objgraph.show_growth()
+
         all_results = []
         for index, img in enumerate(predicted_data):
             if img is None:
                 logger.info("error in loading image")
                 all_results.append([])
                 continue
-            starttime = time.time()
-            length = len(locate)
-            # locate 定位坐标(高起始,高结束,宽起始,宽结束) & 小于图片分辨率
-            # tt = length == 4 and locate[0] < locate[1] and locate[2] < locate[3] and locate[1] <= img.shape[0] and locate[3] <= img.shape[1]
-            # all_results.append({'locate': locate, 'shape': img.shape, 'tt': tt})
-            if length == 4 and locate[0] < locate[1] and locate[2] < locate[3] and locate[1] <= img.shape[0] and locate[3] <= img.shape[1]:
-                img = img[locate[0]:locate[1],locate[2]:locate[3]]
-            elif length > 0 and length < 4:
-                raise TypeError("The locate data is inconsistent with expectations.")
-            dt_boxes, rec_res, _ = self.text_sys(img)
-            elapse = time.time() - starttime
-            logger.info("Predict time: {}".format(elapse))
+            # starttime = time.time()
+            img_rec_res_final = []
+            for locate in locates[index]:
+                length = len(locate)
+                rec_res_final = []
+                # locate 定位坐标(高起始,高结束,宽起始,宽结束) & 小于图片分辨率
+                # tt = length == 4 and locate[0] < locate[1] and locate[2] < locate[3] and locate[1] <= img.shape[0] and locate[3] <= img.shape[1]
+                # all_results.append({'locate': locate, 'shape': img.shape, 'tt': tt})
+                if length == 4 and locate[0] < locate[1] and locate[2] < locate[3] and locate[1] <= img.shape[0] and locate[3] <= img.shape[1]:
+                    small_img = img[locate[0]:locate[1],locate[2]:locate[3]]
+                else:
+                    rec_res_final.append("")
+                    continue
+                dt_boxes, rec_res, _ = self.text_sys(small_img)
+                # elapse = time.time() - starttime
+                # logger.info("Predict time: {}".format(elapse))
 
-            dt_num = len(dt_boxes)
-            rec_res_final = []
+                dt_num = len(dt_boxes)
+                
+                for dno in range(dt_num):
+                    text, _ = rec_res[dno]
+                    # rec_res_final.append({
+                    #     'text': text,
+                    #     'confidence': float(score),
+                    #     'text_region': dt_boxes[dno].astype(np.int_).tolist()
+                    # })
+                    rec_res_final.append(text)
 
-            for dno in range(dt_num):
-                text, _ = rec_res[dno]
-                # rec_res_final.append({
-                #     'text': text,
-                #     'confidence': float(score),
-                #     'text_region': dt_boxes[dno].astype(np.int_).tolist()
-                # })
-                rec_res_final.append(text)
+                img_rec_res_final.append(rec_res_final)
+                del small_img
+
+            del img
+            
             all_results.append({
                 'id': ids[index],
-                'text':rec_res_final
+                'text':img_rec_res_final
             })
-
+        # objgraph.show_growth()
         # 手动释放内存
-        del predicted_data
+        del predicted_data, images, ids, paths, locates
         gc.collect()
         return all_results
 
+    # 显示当前 python 程序占用的内存大小
+    def show_memory_info(self, hint):
+        pid = os.getpid()
+        p = psutil.Process(pid)
+
+        info = p.memory_full_info()
+        memory = info.uss / 1024. / 1024
+        logger.debug('{} memory used: {} MB'.format(hint, memory))
+
     @serving
-    def serving_method(self, images, type, ids, locate=[], **kwargs):
+    def serving_method(self, images, type, ids, locates, **kwargs):
         """
         Run as a service.
         """
-        results = ""
-        if len(images) != len(ids):
+        # self.show_memory_info('step 1')
+        if ids == [] or len(images) != len(ids):
             raise TypeError("The input ids is inconsistent with expectations.")
+        
+        if locates == [] or len(images) != len(locates):
+                raise TypeError("The input locates is inconsistent with expectations.")
         
         if(type == "image"):
             images_decode = [base64_to_cv2(image) for image in images]
-            results = self.predict(images=images_decode, ids=ids, locate=locate, **kwargs)
+            results = self.predict(images=images_decode, ids=ids, locates=locates, **kwargs)
         elif(type == "path"):
-            results = self.predict(paths=images, ids=ids, locate=locate)
+            results = self.predict(paths=images, ids=ids, locates=locates)
         else:
             raise TypeError("The input type is inconsistent with expectations.")
+       
         return results
     
-
-
 if __name__ == '__main__':
     ocr = OCRRec()
     ocr._initialize()

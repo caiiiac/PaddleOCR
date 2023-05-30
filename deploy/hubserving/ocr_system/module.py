@@ -44,7 +44,7 @@ logger = get_logger()
     author_email="paddle-dev@baidu.com",
     type="cv/PP-OCR_system")
 class OCRSystem(hub.Module):
-    def _initialize(self, use_gpu=False, enable_mkldnn=False):
+    def _initialize(self, use_gpu=False, enable_mkldnn=True):
         """
         initialize with the necessary elements
         """
@@ -127,8 +127,8 @@ class OCRSystem(hub.Module):
             # all_results.append({'locate': locate, 'shape': img.shape, 'tt': tt})
             if length == 4 and locate[0] < locate[1] and locate[2] < locate[3] and locate[1] <= img.shape[0] and locate[3] <= img.shape[1]:
                 img = img[locate[0]:locate[1],locate[2]:locate[3]]
-            elif length > 0 and length < 4:
-                raise TypeError("The locate data is inconsistent with expectations.")
+            # elif length > 0 and length < 4:
+            #     raise TypeError("The locate data is inconsistent with expectations.")
             dt_boxes, rec_res, _ = self.text_sys(img)
             elapse = time.time() - starttime
             logger.info("Predict time: {}".format(elapse))

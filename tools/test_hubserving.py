@@ -140,7 +140,7 @@ def main_one(args):
             logger.info("{} processed".format(cnt))
     logger.info("avg time cost: {}".format(float(total_time) / cnt))
 
-def main(args):
+def main_2(args):
     image_file_list = get_image_file_list(args.image_dir)
     headers = {"Content-type": "application/json"}
 
@@ -155,6 +155,36 @@ def main(args):
         imgs.append(cv2_to_base64(img))
 
     data = {'images': imgs, 'type': 'image'}
+    r = requests.post(
+        url=args.server_url, headers=headers, data=json.dumps(data))
+    elapse = time.time() - starttime
+
+    res = r.json()
+    logger.info(res)
+
+    logger.info("avg time cost: {}".format(float(elapse)))
+
+def main(args):
+    image_file_list = get_image_file_list(args.image_dir)
+    headers = {"Content-type": "application/json"}
+
+    imgs = []
+    ids = []
+    locates = []
+    
+    starttime = time.time()
+    for index, image_file in enumerate(image_file_list):
+        img = open(image_file, 'rb').read()
+        if img is None:
+            logger.info("error in loading image:{}".format(image_file))
+            continue
+        # seed http request
+        imgs.append(cv2_to_base64(img))
+        ids.append(str(index))
+        locates.append([[0,700,0,1400]])
+
+    data = {'images': imgs, 'type': 'image', 'ids': ids, 'locates': locates}
+
     r = requests.post(
         url=args.server_url, headers=headers, data=json.dumps(data))
     elapse = time.time() - starttime
