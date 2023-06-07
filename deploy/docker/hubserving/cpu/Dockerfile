@@ -4,7 +4,7 @@ FROM registry.baidubce.com/paddlepaddle/paddle:2.4.2
 # PaddleOCR base on Python3.7
 RUN pip3.7 install --upgrade pip -i https://mirror.baidu.com/pypi/simple
 
-RUN pip3.7 install paddlehub==2.3.1 --upgrade -i https://mirror.baidu.com/pypi/simple
+# RUN pip3.7 install paddlehub==2.3.1 --upgrade -i https://mirror.baidu.com/pypi/simple
 
 RUN git clone https://gitee.com/caiiiac/PaddleOCR.git /PaddleOCR
 
