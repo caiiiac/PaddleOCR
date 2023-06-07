@@ -44,7 +44,7 @@ logger = get_logger()
     author_email="paddle-dev@baidu.com",
     type="cv/PP-OCR_system")
 class OCRSystem(hub.Module):
-    def _initialize(self, use_gpu=False, enable_mkldnn=True):
+    def _initialize(self, use_gpu=False, enable_mkldnn=False):
         """
         initialize with the necessary elements
         """

@@ -20,7 +20,7 @@ import os
 import sys
 sys.path.insert(0, ".")
 import copy
-import psutil
+# import psutil
 import gc
 
 import time
@@ -46,7 +46,7 @@ logger = get_logger()
     author_email="paddle-dev@baidu.com",
     type="cv/text_recognition")
 class OCRRec(hub.Module):
-    def _initialize(self, use_gpu=False, enable_mkldnn=True):
+    def _initialize(self, use_gpu=False, enable_mkldnn=False):
         """
         initialize with the necessary elements
         """
@@ -169,13 +169,13 @@ class OCRRec(hub.Module):
         return all_results
 
     # 显示当前 python 程序占用的内存大小
-    def show_memory_info(self, hint):
-        pid = os.getpid()
-        p = psutil.Process(pid)
+    # def show_memory_info(self, hint):
+    #     pid = os.getpid()
+    #     p = psutil.Process(pid)
 
-        info = p.memory_full_info()
-        memory = info.uss / 1024. / 1024
-        logger.debug('{} memory used: {} MB'.format(hint, memory))
+    #     info = p.memory_full_info()
+    #     memory = info.uss / 1024. / 1024
+    #     logger.debug('{} memory used: {} MB'.format(hint, memory))
 
     @serving
     def serving_method(self, images, type, ids, locates, **kwargs):
