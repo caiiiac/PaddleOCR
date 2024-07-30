@@ -26,7 +26,6 @@ import gc
 import time
 import logging
 from ppocr.utils.logging import get_logger
-from ppocr.utils.utility import check_and_read
 from paddlehub.module.module import moduleinfo, runnable, serving
 import cv2
 import paddlehub as hub
@@ -47,7 +46,7 @@ logger = get_logger()
     author_email="paddle-dev@baidu.com",
     type="cv/text_recognition")
 class OCRRec(hub.Module):
-    def _initialize(self, use_gpu=False, enable_mkldnn=True):
+    def _initialize(self, use_gpu=False, enable_mkldnn=False):
         """
         initialize with the necessary elements
         """
@@ -86,119 +85,88 @@ class OCRRec(hub.Module):
         sys.argv = copy.deepcopy(backup_argv)
         return cfg
 
-    def read_image(self, path):
-        assert os.path.isfile(
-                path), "The {} isn't a valid file.".format(path)
-        img = cv2.imread(path)
-        if img is None:
-            logger.info("error in loading image:{}".format(path))
-            return None
-            
-        return img
-
-    def del_images(self, paths=[]):
-        for image in paths:
-            try:
-                os.remove(image)
-            except OSError as e:
-                logger.info("删除文件 {} 时出错".format(image))
+    def read_images(self, paths=[]):
+        images = []
+        for img_path in paths:
+            assert os.path.isfile(
+                img_path), "The {} isn't a valid file.".format(img_path)
+            img = cv2.imread(img_path)
+            if img is None:
+                logger.info("error in loading image:{}".format(img_path))
+                continue
+            images.append(img)
+        return images
     
-    def predict(self, image, locates=[]):
+    def predict(self, images=[], paths=[], ids=[], locates=[]):
         """
         Get the chinese texts in the predicted images.
         Args:
-            image (numpy.ndarray): images data, shape of each is [H, W, C]. If images not paths
+            images (list(numpy.ndarray)): images data, shape of each is [H, W, C]. If images not paths
+            paths (list[str]): The paths of images. If paths not images
         Returns:
             res (list): The result of chinese texts and save path of images.
         """
 
-        assert image is not None, "There is not any image to be predicted. Please check the input data."
+        if images != [] and isinstance(images, list) and paths == []:
+            predicted_data = images
+        elif images == [] and isinstance(paths, list) and paths != []:
+            predicted_data = self.read_images(paths)
+        else:
+            raise TypeError("The input data is inconsistent with expectations.")
+
+        assert predicted_data != [], "There is not any image to be predicted. Please check the input data."
+
+        
+        # objgraph.show_growth()
 
         all_results = []
-        if len(locates) > 0:
-            starttime = time.time()
-
-            for locate in locates:
+        for index, img in enumerate(predicted_data):
+            if img is None:
+                logger.info("error in loading image")
+                all_results.append([])
+                continue
+            # starttime = time.time()
+            img_rec_res_final = []
+            for locate in locates[index]:
                 length = len(locate)
                 rec_res_final = []
                 # locate 定位坐标(高起始,高结束,宽起始,宽结束) & 小于图片分辨率
                 # tt = length == 4 and locate[0] < locate[1] and locate[2] < locate[3] and locate[1] <= img.shape[0] and locate[3] <= img.shape[1]
                 # all_results.append({'locate': locate, 'shape': img.shape, 'tt': tt})
-                if length == 4 and locate[0] < locate[1] and locate[2] < locate[3] and locate[1] <= image.shape[0] and locate[3] <= image.shape[1]:
-                    small_img = image[locate[0]:locate[1],locate[2]:locate[3]]
+                if length == 4 and locate[0] < locate[1] and locate[2] < locate[3] and locate[1] <= img.shape[0] and locate[3] <= img.shape[1]:
+                    small_img = img[locate[0]:locate[1],locate[2]:locate[3]]
                 else:
                     rec_res_final.append("")
                     continue
                 dt_boxes, rec_res, _ = self.text_sys(small_img)
+                # elapse = time.time() - starttime
+                # logger.info("Predict time: {}".format(elapse))
 
                 dt_num = len(dt_boxes)
-
+                
                 for dno in range(dt_num):
                     text, _ = rec_res[dno]
+                    # rec_res_final.append({
+                    #     'text': text,
+                    #     'confidence': float(score),
+                    #     'text_region': dt_boxes[dno].astype(np.int_).tolist()
+                    # })
                     rec_res_final.append(text)
 
-                all_results.append(rec_res_final)
+                img_rec_res_final.append(rec_res_final)
                 del small_img
 
-            elapse = time.time() - starttime    
-            logger.info("Predict time: {}".format(elapse))
-        else:
-            dt_boxes, rec_res, rec_time = self.text_sys(image)
-            logger.info("Predict time: {}".format(rec_time['all']))
-
-            dt_num = len(dt_boxes)
-
-            for dno in range(dt_num):
-                text, _ = rec_res[dno]
-                all_results.append(text)
-
-        # 手动释放内存
-        del image, locates
-        return all_results
-
-    def predict_pdf(self, path):
-        """
-        Get the chinese texts in the predicted images.
-        Args:
-            path (str): The path of pdf.
-        Returns:
-            res (list): The result of chinese texts and save path of pdf.
-        """
-
-        all_results = []
-        pdf, flag_gif, flag_pdf = check_and_read(path)
-        if pdf is None or not flag_pdf:
-            predicted_data = []
-        else:
-            page_num = len(pdf)
-            predicted_data = pdf[:page_num]
-
-        assert predicted_data != [], "There is not any file to be predicted. Please check the input data."
-        starttime = time.time()
-
-        for index, img in enumerate(predicted_data):
-            rec_res_final = []
-            if img is None:
-                logger.info("error in loading image")
-                rec_res_final.append([])
-                continue
+            del img
             
-            dt_boxes, rec_res, _ = self.text_sys(img)
-            dt_num = len(dt_boxes)
-            
-            for dno in range(dt_num):
-                text, _ = rec_res[dno]
-                rec_res_final.append(text)
-        
-            all_results.append(rec_res_final)
-
-        elapse = time.time() - starttime
-        logger.info("Predict time: {}".format(elapse))
-
+            all_results.append({
+                'id': ids[index],
+                'text':img_rec_res_final
+            })
+        # objgraph.show_growth()
         # 手动释放内存
-        del predicted_data, pdf
+        del predicted_data, images, ids, paths, locates
+        gc.collect()
         return all_results
-
 
     # 显示当前 python 程序占用的内存大小
     # def show_memory_info(self, hint):
@@ -210,23 +178,22 @@ class OCRRec(hub.Module):
     #     logger.debug('{} memory used: {} MB'.format(hint, memory))
 
     @serving
-    def serving_method(self, image, type, locates=[], **kwargs):
+    def serving_method(self, images, type, ids, locates, **kwargs):
         """
         Run as a service.
         """
-
+        # self.show_memory_info('step 1')
+        if ids == [] or len(images) != len(ids):
+            raise TypeError("The input ids is inconsistent with expectations.")
+        
+        if locates == [] or len(images) != len(locates):
+                raise TypeError("The input locates is inconsistent with expectations.")
+        
         if(type == "image"):
-            images_decode = base64_to_cv2(image)
-            results = self.predict(image=images_decode, locates=locates)
+            images_decode = [base64_to_cv2(image) for image in images]
+            results = self.predict(images=images_decode, ids=ids, locates=locates, **kwargs)
         elif(type == "path"):
-            images_decode = self.read_image(image)
-            results = self.predict(image=images_decode, locates=locates)
-        elif(type == "delfile"):
-            images_decode = self.read_image(image)
-            results = self.predict(image=images_decode, locates=locates)
-            self.del_images([image])
-        elif(type == "pdf"):
-            results = self.predict_pdf(path=image)
+            results = self.predict(paths=images, ids=ids, locates=locates)
         else:
             raise TypeError("The input type is inconsistent with expectations.")
        

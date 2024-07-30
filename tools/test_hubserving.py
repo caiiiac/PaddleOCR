@@ -96,13 +96,13 @@ def save_structure_res(res, save_folder, image_file):
                     f.write('{}\n'.format(json.dumps(text_result)))
 
 
-def main_one(args):
+def main1(args):
     image_file_list = get_image_file_list(args.image_dir)
     is_visualize = False
     headers = {"Content-type": "application/json"}
     cnt = 0
     total_time = 0
-    for image_file in image_file_list:
+    for index, image_file in enumerate(image_file_list):
         img = open(image_file, 'rb').read()
         if img is None:
             logger.info("error in loading image:{}".format(image_file))
@@ -110,7 +110,8 @@ def main_one(args):
         img_name = os.path.basename(image_file)
         # seed http request
         starttime = time.time()
-        data = {'images': [cv2_to_base64(img)]}
+        # data = {'images': [cv2_to_base64(img)]}
+        data = {'images': [cv2_to_base64(img)], 'type': 'image', 'ids': str(index)}
         r = requests.post(
             url=args.server_url, headers=headers, data=json.dumps(data))
         elapse = time.time() - starttime
@@ -181,9 +182,9 @@ def main(args):
         # seed http request
         imgs.append(cv2_to_base64(img))
         ids.append(str(index))
-        locates.append([[0,700,0,1400]])
+        # locates.append([[0,700,0,1400]])
 
-    data = {'images': imgs, 'type': 'image', 'ids': ids, 'locates': locates}
+    data = {'images': imgs, 'type': 'image', 'ids': ids}#, 'locates': locates}
 
     r = requests.post(
         url=args.server_url, headers=headers, data=json.dumps(data))

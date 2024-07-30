@@ -10,9 +10,9 @@ RUN git clone https://gitee.com/caiiiac/PaddleOCR.git /PaddleOCR
 
 WORKDIR /PaddleOCR
 
-RUN pip3.7 install -r requirements.txt -i https://mirror.baidu.com/pypi/simple
+RUN pip3.7 install ./deploy/docker/hubserving/wheel/paddlehub-2.3.2-py3-none-any.whl -i https://mirror.baidu.com/pypi/simple
 
-RUN pip3.7 install ./deploy/docker/hubserving/wheel/paddlehub-2.3.2-py3-none-any.whl
+RUN pip3.7 install -r requirements.txt -i https://mirror.baidu.com/pypi/simple
 
 RUN mkdir -p /PaddleOCR/inference/
 # Download orc detect model(light version). if you want to change normal version, you can change ch_ppocr_mobile_v2.0_det_infer to ch_ppocr_server_v2.0_det_infer, also remember change det_model_dir in deploy/hubserving/ocr_system/params.py>）
