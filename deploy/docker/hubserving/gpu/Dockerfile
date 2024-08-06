@@ -29,4 +29,4 @@ RUN tar xf /PaddleOCR/inference/ch_PP-OCRv3_rec_infer.tar -C /PaddleOCR/inferenc
 
 EXPOSE 8866
 
-CMD ["/bin/bash","-c","hub install deploy/hubserving/ocr_system/ && hub install deploy/hubserving/ocr_rec/ && export CUDA_VISIBLE_DEVICES=0 && hub serving start -c deploy/hubserving/ocr_system/config.json"]
+CMD ["/bin/bash","-c","hub install deploy/hubserving/ocr_system/ && export CUDA_VISIBLE_DEVICES=0 && hub serving start -c deploy/hubserving/ocr_system/config.json"]
